@@ -1,7 +1,7 @@
 matplotlib
 networkx
 numpy
-opencv-python
+opencv-python-headless
 pandas
 pillow
 plotly>
