@@ -1,3 +1,9 @@
+"""
+Written by Shivaji Chaulagain.
+This is under the MIT License.
+If you use this code, please give credit to the author.
+"""
+
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt

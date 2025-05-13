@@ -80,3 +80,5 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 - Developed by Shivaji Chaulagain.
 - Inspired by the need for interactive and visual learning tools for deep learning concepts.
+
+- If you use this code, please give credit to the author.
