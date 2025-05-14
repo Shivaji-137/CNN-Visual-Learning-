@@ -192,64 +192,6 @@ pooling_size = 2
 all_filters = list(filters.COMMON_FILTERS.keys())
 
 
-# class appmode:
-#     def __init__(self, app_mode):
-#         self.app_mode = app_mode
-    
-#     def call_app(self):
-#         if self.app_mode == "Process Sample Images" or self.app_mode == "Upload Your Own Image":
-#             filters_to_show = st.sidebar.multiselect(
-#                 "Select filters to apply",
-#                 all_filters,
-#                 default=["Edge Detection (Horizontal)", "Edge Detection (Vertical)", "Sobel (Horizontal)", "Sobel (Vertical)"]
-#             )
-            
-#             # Add "All Filters" option
-#             if st.sidebar.checkbox("Use All Filters"):
-#                 filters_to_show = all_filters
-            
-#             # Add custom filter option
-#             custom_filter = st.sidebar.checkbox("Add Custom Filter")
-            
-#             if custom_filter:
-#                 st.sidebar.markdown("Custom Filter Values (separated by commas)")
-#                 custom_filter_rows = []
-#                 for i in range(3):
-#                     row_values = st.sidebar.text_input(f"Row {i+1}", value="0, 0, 0", key=f"custom_row_{i}")
-#                     try:
-#                         row = [float(x.strip()) for x in row_values.split(',')]
-#                         if len(row) != 3:
-#                             st.sidebar.warning(f"Row {i+1} must have 3 values")
-#                             row = [0, 0, 0]
-#                         custom_filter_rows.append(row)
-#                     except:
-#                         st.sidebar.warning(f"Invalid values in row {i+1}")
-#                         custom_filter_rows.append([0, 0, 0])
-                
-#                 custom_filter_array = np.array(custom_filter_rows)
-#                 filters.COMMON_FILTERS["Custom Filter"] = custom_filter_array
-                
-#                 if "Custom Filter" not in filters_to_show:
-#                     filters_to_show.append("Custom Filter")
-
-
-
-#         if self.app_mode == "Process Sample Images" or self.app_mode == "Upload Your Own Image":
-#             st.sidebar.title("Activation & Pooling")
-#             selected_activation = st.sidebar.selectbox(
-#                 "Select activation function",
-#                 list(activation_functions.keys())
-#             )
-            
-#             selected_pooling = st.sidebar.selectbox(
-#                 "Select pooling operation",
-#                 list(pooling_functions.keys())
-#             )
-            
-#             pooling_size = st.sidebar.slider("Pooling Size", 2, 5, 2, 1)
-
-# This function is no longer needed since we're generating images directly
-# It's kept as a stub for backward compatibility
 def download_sample_image(url):
     """Legacy function - no longer used"""
     pass
@@ -1414,6 +1356,7 @@ class appmode:
             
             # Create image selection
             sample_images = [img["name"] for img in SAMPLE_IMAGES]
+            
             selected_image_name = st.selectbox("Select a sample image", sample_images)
             
             # Find the selected image data

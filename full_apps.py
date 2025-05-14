@@ -87,6 +87,20 @@ def load_mnist_data():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     return X_train, X_test, y_train, y_test, digits
 
+def load_olivetti_data():
+    # Load Olivetti dataset
+    olivetti = datasets.fetch_olivetti_faces()
+    X = olivetti.data
+    y = olivetti.target
+    
+    # Normalize data
+    X = X / 16.0
+    
+    # Reshape for CNN (assuming 64x64 images for Olivetti dataset)
+    X = X.reshape(-1, 64, 64, 1)
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    return X_train, X_test, y_train, y_test, olivetti
 
 # CNN from Scratch section
 if app_mode == "CNN from Scratch":
@@ -102,6 +116,7 @@ if app_mode == "CNN from Scratch":
     
     # Display sample images
     st.subheader("Sample Images from Dataset")
+    
     cols = st.columns(5)
     for i, col in enumerate(cols):
         with col:
@@ -156,6 +171,22 @@ if app_mode == "CNN from Scratch":
             # Evaluate on test data
             accuracy = scratch_model.evaluate(X_test[:50], y_test[:50])
             st.metric("Test Accuracy", f"{accuracy:.2%}")
+
+            indices = np.random.choice(len(X_test), 5, replace=False)
+            st.subheader("Predictions on Test Images")
+            cols = st.columns(5)
+            for i, col in enumerate(cols):
+                with col:
+                    if i < len(indices):
+                        index = indices[i]
+                        image = X_test[index]
+                        label = y_test[index]   
+                        pred = scratch_model.predict(image)
+                        predicted_class = np.argmax(pred)
+                        st.image(np.squeeze(image), caption=f"Predicted Class: {predicted_class}", use_container_width=True)
+                        st.write(f"True Class: {label}")
+                        st.write(f"Predicted Class: {predicted_class}")
+                        
 
 # CNN with Libraries section
 elif app_mode == "CNN with Libraries":

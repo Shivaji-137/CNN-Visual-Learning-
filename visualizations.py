@@ -307,10 +307,10 @@ def visualize_convolution_scratch(model, input_image):
     axs[1].axis('off')
     
     # Show output feature map (for the filter shown)
-    axs[2].imshow(conv_output[:, :, filter_idx], cmap='inferno')
+    axs[2].imshow(conv_output[:, :, filter_idx], cmap='gray')
     axs[2].set_title(f'Feature Map {filter_idx}')
     axs[2].axis('off')
-    
+
     plt.tight_layout()
     st.pyplot(fig)
     
@@ -327,7 +327,7 @@ def visualize_convolution_scratch(model, input_image):
     axs[0].axis('off')
     
     # Show corresponding feature map
-    axs[1].imshow(conv_output[:, :, selected_filter], cmap='inferno')
+    axs[1].imshow(conv_output[:, :, selected_filter], cmap='gray')
     axs[1].set_title(f'Feature Map {selected_filter}')
     axs[1].axis('off')
     
@@ -350,12 +350,12 @@ def visualize_pooling_scratch(model, input_image):
     fig, axs = plt.subplots(1, 3, figsize=(12, 4))
     
     # Show post-activation feature map
-    axs[0].imshow(relu_output[:, :, filter_idx], cmap='inferno')
+    axs[0].imshow(relu_output[:, :, filter_idx], cmap='gray')
     axs[0].set_title(f'Post-ReLU Feature Map\n{relu_output.shape[0]}x{relu_output.shape[1]}')
     axs[0].axis('off')
     
     # Show pooling grid
-    axs[1].imshow(relu_output[:, :, filter_idx], cmap='inferno')
+    axs[1].imshow(relu_output[:, :, filter_idx], cmap='gray')
     axs[1].set_title('Pooling Regions (2x2)')
     axs[1].axis('off')
     
@@ -366,7 +366,7 @@ def visualize_pooling_scratch(model, input_image):
         axs[1].axvline(x=j-0.5, color='white', linestyle='-', linewidth=1)
     
     # Show pooled output
-    axs[2].imshow(pool_output[:, :, filter_idx], cmap='inferno')
+    axs[2].imshow(pool_output[:, :, filter_idx], cmap='gray')
     axs[2].set_title(f'Pooled Feature Map\n{pool_output.shape[0]}x{pool_output.shape[1]}')
     axs[2].axis('off')
     
@@ -380,7 +380,7 @@ def visualize_pooling_scratch(model, input_image):
     fig, axs = plt.subplots(1, 2, figsize=(8, 4))
     
     # Show selected feature map before pooling
-    axs[0].imshow(relu_output[:, :, selected_filter], cmap='inferno')
+    axs[0].imshow(relu_output[:, :, selected_filter], cmap='gray')
     axs[0].set_title(f'Before Pooling\n{relu_output.shape[0]}x{relu_output.shape[1]}')
     axs[0].axis('off')
     
@@ -391,7 +391,7 @@ def visualize_pooling_scratch(model, input_image):
         axs[0].axvline(x=j-0.5, color='white', linestyle='-', linewidth=1)
     
     # Show selected feature map after pooling
-    axs[1].imshow(pool_output[:, :, selected_filter], cmap='inferno')
+    axs[1].imshow(pool_output[:, :, selected_filter], cmap='gray')
     axs[1].set_title(f'After Pooling\n{pool_output.shape[0]}x{pool_output.shape[1]}')
     axs[1].axis('off')
     
