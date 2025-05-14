@@ -372,7 +372,6 @@ def visualize_pooling_scratch(model, input_image):
     
     plt.tight_layout()
     st.pyplot(fig)
-    
     # Add slider to view different filters
     selected_filter = st.slider("Select Filter for Pooling", 0, model.conv_filters-1, 0, key="pool_filter")
     
