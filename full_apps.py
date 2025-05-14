@@ -52,7 +52,7 @@ and understand how CNNs work through interactive demonstrations.
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.selectbox(
     "Choose a section",
-    ["Introduction", "CNN from Scratch", "Process Sample Images", "Upload Your Own Image", "Custom Filter Builder", "CNN with Libraries", "Comparison", "Training Visualization"]
+    ["Introduction", "CNN from Scratch", "CNN with Libraries", "Process Sample Images", "Upload Your Own Image", "Custom Filter Builder", "Comparison", "Training Visualization"]
 )
 
 st.sidebar.title("Filter Parameters")
