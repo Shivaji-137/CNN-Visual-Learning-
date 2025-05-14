@@ -223,8 +223,8 @@ elif app_mode == "CNN with Libraries":
         if st.button("Train TensorFlow Model (Sample Run)"):
             with st.spinner('Training CNN with TensorFlow...'):
                 # Take a small subset for quick demonstration
-                X_sample = X_train[:100]
-                y_sample = y_train[:100]
+                X_sample = X_train[:700]
+                y_sample = y_train[:700]
                 
                 # Train the model
                 history = tf_model.train(X_sample, y_sample, epochs=num_epochs, batch_size=batch_size)
@@ -249,6 +249,20 @@ elif app_mode == "CNN with Libraries":
                 # Evaluate on test data
                 test_loss, test_accuracy = tf_model.evaluate(X_test, y_test)
                 st.metric("Test Accuracy", f"{test_accuracy:.2%}")
+                st.subheader("Predictions on Test Images")
+                cols = st.columns(5)
+                for i, col in enumerate(cols):
+                    with col:
+                        if i < len(X_test):
+                            index = i
+                            image = X_test[index]
+                            label = y_test[index]   
+                            pred = tf_model.predict(image.reshape(1, 8, 8, 1))
+                            predicted_class = np.argmax(pred)
+                            st.image(np.squeeze(image), caption=f"Predicted Class: {predicted_class}", use_container_width=True)
+                            st.write(f"True Class: {label}")
+                            st.write(f"Predicted Class: {predicted_class}")
+
     
     else:  # PyTorch
         # Prepare data for PyTorch
@@ -271,8 +285,8 @@ elif app_mode == "CNN with Libraries":
         if st.button("Train PyTorch Model (Sample Run)"):
             with st.spinner('Training CNN with PyTorch...'):
                 # Take a small subset for quick demonstration
-                X_sample = X_train[:100]
-                y_sample = y_train[:100]
+                X_sample = X_train[:700]
+                y_sample = y_train[:700]
                 
                 # Train the model
                 losses, accuracies = torch_model.train(X_sample, y_sample, epochs=num_epochs, batch_size=batch_size)
@@ -297,6 +311,20 @@ elif app_mode == "CNN with Libraries":
                 # Evaluate on test data
                 test_accuracy = torch_model.evaluate(X_test, y_test)
                 st.metric("Test Accuracy", f"{test_accuracy:.2%}")
+                st.subheader("Predictions on Test Images")
+                cols = st.columns(5)
+                for i, col in enumerate(cols):
+                    with col:
+                        if i < len(X_test):
+                            index = i
+                            image = X_test[index]
+                            label = y_test[index]   
+                            pred = torch_model.predict(image)
+                            predicted_class = np.argmax(pred)
+                            st.image(np.squeeze(image), caption=f"Predicted Class: {predicted_class}", use_container_width=True)
+                            st.write(f"True Class: {label}")
+                            st.write(f"Predicted Class: {predicted_class}")
+
 
 # Comparison section
 elif app_mode == "Comparison":
