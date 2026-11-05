@@ -1,9 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
-import tensorflow as tf
-import torch
-import torch.nn.functional as F
 
 from utils import convert_tf_to_numpy, convert_torch_to_numpy
 
@@ -560,14 +557,15 @@ def show_scratch_feature_maps(model, input_image):
 
 def visualize_tf_layers(model, input_data):
     """Visualize TensorFlow CNN layers"""
+    import tensorflow as tf
     # Create models to extract intermediates
     conv_model = tf.keras.models.Model(
-        inputs=model.model.inputs,
+        inputs=model.model.inputs[0],
         outputs=model.model.layers[0].output
     )
     
     pool_model = tf.keras.models.Model(
-        inputs=model.model.inputs,
+        inputs=model.model.inputs[0],
         outputs=model.model.layers[1].output
     )
     
@@ -702,8 +700,10 @@ def show_tf_filters(model):
 
 def visualize_torch_layers(model, input_image):
     """Visualize PyTorch CNN layers"""
+    import torch
+    import torch.nn.functional as F
     # Create tensor from input
-    input_tensor = torch.tensor(input_image.reshape(1, 1, 8, 8), dtype=torch.float32)
+    input_tensor = model._input_tensor(input_image).to(model.device)
     
     # Get model
     torch_model = model.model

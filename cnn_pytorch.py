@@ -32,10 +32,10 @@ class PyTorchCNN(nn.Module):
         x = self.pool(x)
         
         # Flatten
-        x = x.view(x.size(0), -1)
+        x = torch.flatten(x, 1)
         
-        # Fully connected layer with softmax activation
-        x = F.softmax(self.fc(x), dim=1)
+        # CrossEntropyLoss expects logits; predict() converts them to probabilities.
+        x = self.fc(x)
         
         return x
 
@@ -56,10 +56,28 @@ class TorchCNN:
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
     
+    def _input_tensor(self, images):
+        """Accept one image or a batch in HWC (app) or CHW (PyTorch) layout."""
+        images = np.asarray(images, dtype=np.float32)
+        channels, height, width = self.input_shape
+        if images.ndim == 2 and channels == 1:
+            images = images[None, :, :, None]
+        elif images.ndim == 3:
+            images = images[None, ...]
+        if images.ndim != 4:
+            raise ValueError("Expected a single image or a batch of images.")
+        if images.shape[1:] == (height, width, channels):
+            images = images.transpose(0, 3, 1, 2)
+        elif images.shape[1:] != self.input_shape:
+            raise ValueError(f"Expected CHW {self.input_shape} or HWC {(height, width, channels)}.")
+        if not len(images):
+            raise ValueError("Image data must not be empty.")
+        return torch.from_numpy(np.ascontiguousarray(images))
+
     def train(self, X_train, y_train, epochs=5, batch_size=32):
         """Train the model"""
         # Convert numpy arrays to PyTorch tensors
-        X_tensor = torch.tensor(X_train.reshape(-1, 1, 8, 8), dtype=torch.float32)
+        X_tensor = self._input_tensor(X_train)
         y_tensor = torch.tensor(y_train, dtype=torch.long)
         
         # Create dataset and dataloader
@@ -98,7 +116,7 @@ class TorchCNN:
                 running_loss += loss.item()
                 
                 # Calculate accuracy
-                _, predicted = torch.max(outputs.data, 1)
+                _, predicted = torch.max(outputs.detach(), 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
                 
@@ -116,7 +134,7 @@ class TorchCNN:
     def train_with_visualization(self, X_train, y_train, epochs=5, batch_size=32, progress_callback=None):
         """Train with visualization callback"""
         # Convert numpy arrays to PyTorch tensors
-        X_tensor = torch.tensor(X_train.reshape(-1, 1, 8, 8), dtype=torch.float32)
+        X_tensor = self._input_tensor(X_train)
         y_tensor = torch.tensor(y_train, dtype=torch.long)
         
         # Create dataset and dataloader
@@ -160,7 +178,7 @@ class TorchCNN:
                 running_loss += loss.item()
                 
                 # Calculate accuracy
-                _, predicted = torch.max(outputs.data, 1)
+                _, predicted = torch.max(outputs.detach(), 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
                 
@@ -177,7 +195,7 @@ class TorchCNN:
                 # Store filter weights periodically
                 if batch_count % 5 == 0 or batch_count == total_batches:
                     # Get filter weights from first conv layer
-                    filter_weights.append(self.model.conv1.weight.detach().cpu().numpy())
+                    filter_weights.append(self.model.conv1.weight.detach().cpu().numpy().copy())
                 
                 # Call progress callback
                 if progress_callback:
@@ -196,14 +214,14 @@ class TorchCNN:
         self.model.eval()
         
         # Convert input to PyTorch tensor
-        X_tensor = torch.tensor(X.reshape(1, 1, 8, 8), dtype=torch.float32).to(self.device)
+        X_tensor = self._input_tensor(X).to(self.device)
         
         # Make prediction
         with torch.no_grad():
             output = self.model(X_tensor)
         
         # Convert to numpy array
-        return output.cpu().numpy()[0]
+        return F.softmax(output, dim=1).cpu().numpy()[0]
     
     def evaluate(self, X_test, y_test):
         """Evaluate model"""
@@ -211,7 +229,7 @@ class TorchCNN:
         self.model.eval()
         
         # Convert numpy arrays to PyTorch tensors
-        X_tensor = torch.tensor(X_test.reshape(-1, 1, 8, 8), dtype=torch.float32).to(self.device)
+        X_tensor = self._input_tensor(X_test)
         y_tensor = torch.tensor(y_test, dtype=torch.long).to(self.device)
         
         # Create dataset and dataloader
@@ -232,11 +250,13 @@ class TorchCNN:
                 outputs = self.model(inputs)
                 
                 # Calculate accuracy
-                _, predicted = torch.max(outputs.data, 1)
+                _, predicted = torch.max(outputs.detach(), 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
         
         # Calculate accuracy
+        if total == 0:
+            raise ValueError("Evaluation data must not be empty.")
         accuracy = correct / total
         return accuracy
     
@@ -246,7 +266,7 @@ class TorchCNN:
         self.model.eval()
         
         # Convert input to PyTorch tensor
-        X_tensor = torch.tensor(X.reshape(1, 1, 8, 8), dtype=torch.float32).to(self.device)
+        X_tensor = self._input_tensor(X).to(self.device)
         
         # Get feature maps
         with torch.no_grad():

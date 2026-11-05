@@ -1,8 +1,11 @@
 import numpy as np
-from tqdm import tqdm
 
 class CNN:
     def __init__(self, input_shape=(8, 8, 1), conv_filters=16, learning_rate=0.01):
+        if len(input_shape) != 3 or min(input_shape[:2]) < 4 or input_shape[2] < 1:
+            raise ValueError("Expected an HWC input with height and width at least 4.")
+        if conv_filters < 1 or learning_rate <= 0:
+            raise ValueError("Filter count and learning rate must be positive.")
         self.input_shape = input_shape
         self.learning_rate = learning_rate
         self.conv_filters = conv_filters
@@ -74,8 +77,10 @@ class CNN:
         input_height, input_width, num_channels = input_data.shape
         
         # Calculate output dimensions
-        output_height = input_height // stride
-        output_width = input_width // stride
+        if pool_size < 1 or stride < 1 or min(input_height, input_width) < pool_size:
+            raise ValueError("Pooling window must fit the input and stride must be positive.")
+        output_height = (input_height - pool_size) // stride + 1
+        output_width = (input_width - pool_size) // stride + 1
         
         # Initialize output
         output = np.zeros((output_height, output_width, num_channels))
@@ -102,6 +107,8 @@ class CNN:
     
     def forward_pass(self, X):
         """Forward propagation through the network"""
+        if X.shape != self.input_shape:
+            raise ValueError(f"Expected image shape {self.input_shape}, received {X.shape}.")
         # Store input
         self.activations['input'] = X
         
@@ -130,9 +137,6 @@ class CNN:
     
     def backward_pass(self, y):
         """Backward propagation to update weights"""
-        # Number of samples
-        m = 1
-        
         # Calculate the gradient of the output layer
         # For softmax with cross-entropy, gradient is (output - y_one_hot)
         y_one_hot = np.zeros(10)
@@ -167,7 +171,7 @@ class CNN:
                     mask = (region == np.max(region))
                     
                     # Update gradient at max value position
-                    drelu[h_start:h_end, w_start:w_end, c] += mask * dpool[h, w, c]
+                    drelu[h_start:h_end, w_start:w_end, c] += mask * dpool[h, w, c] / mask.sum()
         
         # Gradient for ReLU activation
         drelu[self.activations['relu1'] <= 0] = 0
@@ -198,6 +202,8 @@ class CNN:
     
     def train_step(self, X_batch, y_batch):
         """Train network on a single batch"""
+        if len(X_batch) == 0 or len(X_batch) != len(y_batch):
+            raise ValueError("A batch needs matching nonempty images and labels.")
         total_loss = 0
         
         for i in range(len(X_batch)):
@@ -218,6 +224,10 @@ class CNN:
     def train(self, X_train, y_train, epochs=5, batch_size=32):
         """Train network on the entire dataset"""
         num_samples = len(X_train)
+        if not num_samples or len(y_train) != num_samples:
+            raise ValueError("Training images and labels must have matching nonempty lengths.")
+        if batch_size < 1 or epochs < 1:
+            raise ValueError("Epochs and batch size must be positive.")
         history = {'loss': []}
         
         for epoch in range(epochs):
@@ -248,11 +258,10 @@ class CNN:
                     # Backward pass
                     self.backward_pass(y_batch[j])
                 
-                avg_batch_loss = batch_loss / len(X_batch)
-                total_loss += avg_batch_loss
+                total_loss += batch_loss
             
             # Record average loss for epoch
-            avg_loss = total_loss / (num_samples // batch_size)
+            avg_loss = total_loss / num_samples
             history['loss'].append(avg_loss)
             
             print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
@@ -266,6 +275,8 @@ class CNN:
     
     def evaluate(self, X_test, y_test):
         """Evaluate model on test data"""
+        if not len(X_test) or len(X_test) != len(y_test):
+            raise ValueError("Evaluation needs matching nonempty images and labels.")
         correct = 0
         for i in range(len(X_test)):
             # Forward pass

@@ -173,7 +173,7 @@ filters_to_show = ["Edge Detection (Horizontal)", "Edge Detection (Vertical)", "
 # Activation function selection
 activation_functions = {
     "ReLU": lambda x: np.maximum(0, x),
-    "Sigmoid": lambda x: 1 / (1 + np.exp(-x)),
+    "Sigmoid": lambda x: np.exp(-np.logaddexp(0, -x)),
     "Tanh": lambda x: np.tanh(x),
     "Leaky ReLU": lambda x: np.maximum(0.1 * x, x)
 }
@@ -192,10 +192,6 @@ pooling_size = 2
 all_filters = list(filters.COMMON_FILTERS.keys())
 
 
-def download_sample_image(url):
-    """Legacy function - no longer used"""
-    pass
-
 def preprocess_image(image):
     """Preprocess image to grayscale"""
     # Convert to grayscale
@@ -207,9 +203,9 @@ def preprocess_image(image):
     return img_array
 
 def apply_convolution(image, kernel):
-    """Apply convolution with a given kernel to the image"""
+    """Apply CNN cross-correlation (the kernel is not flipped)."""
     # Apply convolution
-    return signal.convolve2d(image, kernel, mode='valid', boundary='symm')
+    return signal.correlate2d(image, kernel, mode='valid', boundary='symm')
 
 def animate_convolution(image, kernel):
     """Animate the convolution process step by step, showing the sliding window"""
@@ -434,73 +430,6 @@ def visualize_complete_cnn_process(image, filters_dict, activation_name, pooling
             ax.axis('off')
             safe_pyplot(fig)
             
-            # Add animation button for convolution process
-            animate_button = st.button(f"▶️ Animate Convolution Process for {name}", key=f"animate_{name}")
-            
-            # If button is clicked, show the animation right here
-            if animate_button:
-                st.markdown("### Convolution Animation")
-                st.markdown("Watch how the filter slides over the image to create the feature map")
-                
-                # Always use a fixed 8x8 grid for animation (for consistent demonstration)
-                target_size = 8  # Small fixed size for clear visualization of convolution
-                
-                # Resize to exactly 8x8 for animation
-                if image.shape != (target_size, target_size):
-                    # Convert to PIL, resize to 8x8, then back to numpy
-                    pil_img = Image.fromarray((image * 255).astype(np.uint8))
-                    pil_img = pil_img.resize((target_size, target_size), Image.Resampling.NEAREST)
-                    small_image = np.array(pil_img) / 255.0
-                else:
-                    small_image = image.copy()
-                
-                # Make sure the kernel is 3x3 for animation (easier to visualize)
-                anim_kernel = kernel.copy()
-                if kernel.shape[0] > 3 or kernel.shape[1] > 3:
-                    # Use a smaller version of the kernel (center part)
-                    k_center_h = kernel.shape[0] // 2
-                    k_center_w = kernel.shape[1] // 2
-                    anim_kernel = kernel[k_center_h-1:k_center_h+2, k_center_w-1:k_center_w+2]
-                
-                # Run animation
-                with st.spinner("Generating animation..."):
-                    frames, _ = animate_convolution(small_image, anim_kernel)
-                
-                # Display animation
-                if len(frames) > 0:
-                    # Save as GIF with optimizations for speed but slower frame rate
-                    gif_path = "convolution_animation.gif"
-                    
-                    # Reduce image size for faster loading
-                    small_frames = []
-                    for frame in frames:
-                        small_frame = frame.resize((frame.width//2, frame.height//2), Image.Resampling.NEAREST)
-                        small_frames.append(small_frame)
-                    
-                    small_frames[0].save(
-                        gif_path,
-                        save_all=True,
-                        append_images=small_frames[1:],
-                        optimize=True,
-                        duration=500,  # milliseconds per frame (slower animation)
-                        loop=1  # Run only once (1) instead of infinitely (0)
-                    )
-                    
-                    # Use an expander to contain the animation with a collapse option
-                    with st.expander("**Convolution Process Animation** (click to expand/collapse)", expanded=True):
-                        # Add explanation
-                        st.markdown("""
-                        This animation shows how the filter kernel slides over the input image to produce the output feature map.
-                        Each frame displays:
-                        - Left: Input image with the current filter position highlighted in red
-                        - Middle: The filter kernel values
-                        - Right: The resulting feature map with the current position highlighted
-                        """)
-                        
-                        # Display the animated GIF
-                        with open(gif_path, "rb") as file:
-                            st.image(file.read(), caption="Click outside this area to continue browsing", use_container_width=True)
-        
         # Column 3: Display activation result
         with col3:
             st.markdown(f"**After {activation_name}**")
@@ -521,6 +450,12 @@ def visualize_complete_cnn_process(image, filters_dict, activation_name, pooling
             ax.axis('off')
             safe_pyplot(fig)
         
+        from operations_explorer import render_feature_animation
+        render_feature_animation(
+            image, kernel, convolution_results[name], activation_results[name], pooling_results[name],
+            activation_name, pooling_name, pool_size, key=f"feature_{name}",
+        )
+
         # Display 3D visualizations for each stage
         st.markdown("**3D Visualizations of Feature Maps**")
         st.markdown("""
@@ -665,9 +600,9 @@ def visualize_complete_cnn_process(image, filters_dict, activation_name, pooling
         num_output_nodes = 10  # Assuming 10 classes (like MNIST)
         
         # Create random weights and biases for demonstration
-        np.random.seed(42)  # For reproducibility
-        fc_weights = np.random.randn(len(flattened), num_output_nodes) * 0.1
-        fc_biases = np.random.randn(num_output_nodes) * 0.05
+        rng = np.random.default_rng(42)
+        fc_weights = rng.standard_normal((len(flattened), num_output_nodes)) * 0.1
+        fc_biases = rng.standard_normal(num_output_nodes) * 0.05
         
         # Compute the output of the fully connected layer
         fc_output = np.dot(flattened, fc_weights) + fc_biases
@@ -680,7 +615,8 @@ def visualize_complete_cnn_process(image, filters_dict, activation_name, pooling
         probabilities = softmax(fc_output)
         
         # Display the final output probabilities
-        st.markdown("**Final Output (Class Probabilities)**")
+        st.markdown("**Illustrative Output (Random Weights)**")
+        st.caption("These probabilities come from random weights, not a trained classifier.")
         
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.bar(range(num_output_nodes), probabilities)
@@ -951,7 +887,7 @@ def generate_custom_filter():
     
     with col1:
         st.markdown("**Original Image**")
-        st.image(test_image, caption=test_image_name, use_container_width=True)
+        st.image(test_image, caption=test_image_name, width="stretch")
     
     with col2:
         st.markdown("**Convolution Result (Interactive)**")
@@ -1089,6 +1025,7 @@ class appmode:
         self.app_mode = app_mode
     
     def call_app(self):
+        session_filters = dict(filters.COMMON_FILTERS)
         if self.app_mode == "Process Sample Images" or self.app_mode == "Upload Your Own Image":
             filters_to_show = st.sidebar.multiselect(
                 "Select filters to apply",
@@ -1119,7 +1056,7 @@ class appmode:
                         custom_filter_rows.append([0, 0, 0])
                 
                 custom_filter_array = np.array(custom_filter_rows)
-                filters.COMMON_FILTERS["Custom Filter"] = custom_filter_array
+                session_filters["Custom Filter"] = custom_filter_array
                 
                 if "Custom Filter" not in filters_to_show:
                     filters_to_show.append("Custom Filter")
@@ -1139,6 +1076,10 @@ class appmode:
             )
             
             pooling_size = st.sidebar.slider("Pooling Size", 2, 5, 2, 1)
+
+        if self.app_mode in {"Process Sample Images", "Upload Your Own Image"} and not filters_to_show:
+            st.info("Select at least one filter in the sidebar to explore its output.")
+            return
 
         # Introduction section
         if self.app_mode == "Introduction":
@@ -1367,13 +1308,13 @@ class appmode:
             
             # Display original image
             st.subheader("Original Image")
-            st.image(image, caption=selected_image_name, use_container_width=True)
+            st.image(image, caption=selected_image_name, width="stretch")
             
             # Process image (convert to grayscale but maintain original size)
             processed_img = preprocess_image(image)
             
             # Create a dictionary of selected filters
-            selected_filters = {name: filters.COMMON_FILTERS[name] for name in filters_to_show}
+            selected_filters = {name: session_filters[name] for name in filters_to_show}
             
             # Visualize complete CNN process
             results = visualize_complete_cnn_process(
@@ -1508,8 +1449,8 @@ class appmode:
             if uploaded_file is not None:
                 # Display original image
                 st.subheader("Original Image")
-                image = Image.open(uploaded_file)
-                st.image(image, caption="Uploaded Image", use_container_width=True)
+                image = ImageOps.exif_transpose(Image.open(uploaded_file))
+                st.image(image, caption="Uploaded Image", width="stretch")
                 
                 # Preprocess image
                 try:
@@ -1518,14 +1459,14 @@ class appmode:
                     max_size = 400
                     if w > max_size or h > max_size:
                         ratio = min(max_size / w, max_size / h)
-                        new_size = (int(w * ratio), int(h * ratio))
+                        new_size = (max(1, int(w * ratio)), max(1, int(h * ratio)))
                         image = image.resize(new_size, Image.Resampling.BICUBIC)
                         st.info(f"Image was resized from {w}x{h} to {new_size[0]}x{new_size[1]} for better performance.")
                     
                     processed_img = preprocess_image(image)
                     
                     # Create a dictionary of selected filters
-                    selected_filters = {name: filters.COMMON_FILTERS[name] for name in filters_to_show}
+                    selected_filters = {name: session_filters[name] for name in filters_to_show}
                     
                     # Visualize complete CNN process
                     results = visualize_complete_cnn_process(
@@ -1573,274 +1514,3 @@ class appmode:
             
             # Generate and display the custom filter
             custom_filter = generate_custom_filter()
-            
-        def main():
-            # Main app layout
-            st.title("CNN Visualization Explorer")
-            
-            # Top-level app options
-            app_mode = st.sidebar.selectbox(
-                "What would you like to do?",
-                ["About", "Process Sample Images", "Upload Your Own Image", "Custom Filter Builder"]
-            )
-            
-            # About section
-            if app_mode == "About":
-                st.header("CNN Visualization Explorer")
-                
-                st.markdown("""
-                This app demonstrates how Convolutional Neural Networks (CNNs) process images through different layers.
-                
-                ### What You Can Do:
-                - Process sample images with different filters and see the results at each stage
-                - Upload your own images and see how CNNs would process them
-                - Build custom filters to see how they extract different features
-                
-                This interactive visualization helps understand why CNNs are so effective for image classification and feature extraction.
-                """)
-
-            # Process Sample Images section
-            elif app_mode == "Process Sample Images":
-                st.header("Process Sample Images")
-                
-                st.markdown("""
-                See how CNNs process sample images through each stage: convolution, activation, pooling, and fully connected layers.
-                """)
-                
-                # Create image selection
-                sample_images = [img["name"] for img in SAMPLE_IMAGES]
-                selected_image_name = st.selectbox("Select a sample image", sample_images)
-                
-                # Find the selected image data
-                selected_image_data = next(img for img in SAMPLE_IMAGES if img["name"] == selected_image_name)
-                
-                # Get the image directly from our sample images
-                image = selected_image_data["image"]
-                
-                # Display original image
-                st.subheader("Original Image")
-                st.image(image, caption=selected_image_name, use_container_width=True)
-                
-                # Process image (convert to grayscale but maintain original size)
-                processed_img = preprocess_image(image)
-                
-                # CNN Processing Options
-                st.subheader("CNN Layer Settings")
-                
-                # Filter selection
-                st.markdown("**Select filters to apply:**")
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    filter1 = st.checkbox("Edge Detection (Horizontal)", value=True)
-                    filter4 = st.checkbox("Gaussian Blur", value=False)
-                
-                with col2:
-                    filter2 = st.checkbox("Edge Detection (Vertical)", value=True)
-                    filter5 = st.checkbox("Sharpen", value=True)
-                
-                with col3:
-                    filter3 = st.checkbox("Ridge Detection", value=False)
-                    filter6 = st.checkbox("Identity", value=False)
-                
-                # Create a list of selected filters
-                filters_to_show = []
-                if filter1:
-                    filters_to_show.append("Horizontal Edge Detection")
-                if filter2:
-                    filters_to_show.append("Vertical Edge Detection")
-                if filter3:
-                    filters_to_show.append("Ridge Detection")
-                if filter4:
-                    filters_to_show.append("Gaussian Blur")
-                if filter5:
-                    filters_to_show.append("Sharpen")
-                if filter6:
-                    filters_to_show.append("Identity")
-                
-                # Make sure at least one filter is selected
-                if not filters_to_show:
-                    st.warning("Please select at least one filter.")
-                    filters_to_show = ["Horizontal Edge Detection"]
-                
-                # Activation function selection
-                selected_activation = st.selectbox(
-                    "Select Activation Function:",
-                    ["ReLU", "Sigmoid", "Tanh"]
-                )
-                
-                # Pooling operation selection
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    selected_pooling = st.selectbox(
-                        "Select Pooling Operation:",
-                        ["Max Pooling", "Average Pooling"]
-                    )
-                
-                with col2:
-                    pooling_size = st.slider("Pooling Size:", min_value=2, max_value=4, value=2)
-                
-                # Create a dictionary of selected filters
-                selected_filters = {name: filters.COMMON_FILTERS[name] for name in filters_to_show}
-                
-                # Visualize complete CNN process
-                results = visualize_complete_cnn_process(
-                    processed_img, 
-                    selected_filters, 
-                    selected_activation, 
-                    selected_pooling, 
-                    pooling_size, 
-                    title="Complete CNN Processing for Sample Image"
-                )
-                
-                # Display activation function comparison for one filter
-                st.header("Activation Function Comparison")
-                
-                # Select a filter to compare activation functions
-                activation_filter_name = st.selectbox("Select a filter to compare activation functions", filters_to_show)
-                
-                # Get the convolution result for the selected filter
-                convolution_result = results["convolution"][activation_filter_name]
-                
-                # Visualize different activation functions
-                visualize_different_activation_functions(convolution_result)
-                
-                # Display pooling operation comparison
-                st.header("Pooling Operation Comparison")
-                
-                # Get the ReLU result for the selected filter
-                relu_result = results["activation"][activation_filter_name]
-                
-                # Visualize different pooling operations
-                visualize_different_pooling_operations(relu_result)
-
-            # Upload Your Own Image section
-            elif app_mode == "Upload Your Own Image":
-                st.header("Upload Your Own Image")
-                
-                st.markdown("""
-                Upload your own image to see how a CNN would process it through different layers.
-                """)
-                
-                # File uploader
-                uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
-                
-                if uploaded_file is not None:
-                    try:
-                        # Load the image
-                        image = Image.open(uploaded_file).convert('RGB')
-                        
-                        # Display original image
-                        st.subheader("Original Image")
-                        st.image(image, caption="Uploaded Image", use_container_width=True)
-                        
-                        # Process image (convert to grayscale but maintain original size)
-                        processed_img = preprocess_image(image)
-                        
-                        # CNN Processing Options
-                        st.subheader("CNN Layer Settings")
-                        
-                        # Filter selection
-                        st.markdown("**Select filters to apply:**")
-                        col1, col2, col3 = st.columns(3)
-                        
-                        with col1:
-                            filter1 = st.checkbox("Edge Detection (Horizontal)", value=True)
-                            filter4 = st.checkbox("Gaussian Blur", value=False)
-                        
-                        with col2:
-                            filter2 = st.checkbox("Edge Detection (Vertical)", value=True)
-                            filter5 = st.checkbox("Sharpen", value=True)
-                        
-                        with col3:
-                            filter3 = st.checkbox("Ridge Detection", value=False)
-                            filter6 = st.checkbox("Identity", value=False)
-                        
-                        # Create a list of selected filters
-                        filters_to_show = []
-                        if filter1:
-                            filters_to_show.append("Horizontal Edge Detection")
-                        if filter2:
-                            filters_to_show.append("Vertical Edge Detection")
-                        if filter3:
-                            filters_to_show.append("Ridge Detection")
-                        if filter4:
-                            filters_to_show.append("Gaussian Blur")
-                        if filter5:
-                            filters_to_show.append("Sharpen")
-                        if filter6:
-                            filters_to_show.append("Identity")
-                        
-                        # Make sure at least one filter is selected
-                        if not filters_to_show:
-                            st.warning("Please select at least one filter.")
-                            filters_to_show = ["Horizontal Edge Detection"]
-                        
-                        # Activation function selection
-                        selected_activation = st.selectbox(
-                            "Select Activation Function:",
-                            ["ReLU", "Sigmoid", "Tanh"]
-                        )
-                        
-                        # Pooling operation selection
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            selected_pooling = st.selectbox(
-                                "Select Pooling Operation:",
-                                ["Max Pooling", "Average Pooling"]
-                            )
-                        
-                        with col2:
-                            pooling_size = st.slider("Pooling Size:", min_value=2, max_value=4, value=2)
-                        
-                        # Create a dictionary of selected filters
-                        selected_filters = {name: filters.COMMON_FILTERS[name] for name in filters_to_show}
-                        
-                        # Visualize complete CNN process
-                        results = visualize_complete_cnn_process(
-                            processed_img, 
-                            selected_filters, 
-                            selected_activation, 
-                            selected_pooling, 
-                            pooling_size, 
-                            title="Complete CNN Processing for Your Image"
-                        )
-                        
-                        # Display activation function comparison for one filter
-                        st.header("Activation Function Comparison")
-                        
-                        # Select a filter to compare activation functions
-                        activation_filter_name = st.selectbox("Select a filter to compare activation functions", filters_to_show)
-                        
-                        # Get the convolution result for the selected filter
-                        convolution_result = results["convolution"][activation_filter_name]
-                        
-                        # Visualize different activation functions
-                        visualize_different_activation_functions(convolution_result)
-                        
-                        # Display pooling operation comparison
-                        st.header("Pooling Operation Comparison")
-                        
-                        # Get the ReLU result for the selected filter
-                        relu_result = results["activation"][activation_filter_name]
-                        
-                        # Visualize different pooling operations
-                        visualize_different_pooling_operations(relu_result)
-                        
-                    except Exception as e:
-                        st.error(f"Error processing image: {str(e)}")
-                        st.info("Please try uploading a different image.")
-
-            # Custom Filter Builder section
-            elif app_mode == "Custom Filter Builder":
-                st.header("Custom Filter Builder")
-                
-                st.markdown("""
-                Create your own convolutional filter and test it on sample images.
-                This tool helps you understand how different filter designs extract different features.
-                """)
-                
-                # Generate and display the custom filter
-                custom_filter = generate_custom_filter()

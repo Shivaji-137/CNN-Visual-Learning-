@@ -1,15 +1,5 @@
-matplotlib
-networkx
-numpy
-opencv-python-headless
-pandas
-pillow
-plotly
-scikit-learn
-scipy
-seaborn
-streamlit
-tensorflow
-torch
-torchvision
-tqdm
+-r requirements-core.txt
+# Full deployment includes both deep learning frameworks and pretrained models.
+tensorflow>=2.16,<3
+torch>=2.3,<3
+torchvision>=0.18,<1

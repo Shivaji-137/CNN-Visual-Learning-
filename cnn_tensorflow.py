@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
 import matplotlib.pyplot as plt
@@ -52,9 +52,9 @@ class TFCNN:
     def build_model(self):
         """Build CNN model using TensorFlow Keras"""
         model = Sequential([
+            Input(shape=self.input_shape),
             # Convolutional layer
-            Conv2D(self.conv_filters, kernel_size=(3, 3), activation='relu', 
-                   input_shape=self.input_shape, padding='valid'),
+            Conv2D(self.conv_filters, kernel_size=(3, 3), activation='relu', padding='valid'),
             
             # Max pooling layer
             MaxPooling2D(pool_size=(2, 2)),
@@ -63,7 +63,7 @@ class TFCNN:
             Flatten(),
             
             # Fully connected layer
-            Dense(10, activation='softmax')
+            Dense(self.num_classes, activation='softmax')
         ])
         
         # Compile model
@@ -79,7 +79,7 @@ class TFCNN:
         """Display model summary"""
         # Convert model summary to string
         stringlist = []
-        self.model.summary(print_fn=lambda x: stringlist.append(x))
+        self.model.summary(print_fn=lambda line, **kwargs: stringlist.append(line))
         model_summary = "\n".join(stringlist)
         st.text(model_summary)
     
@@ -138,7 +138,7 @@ class TFCNN:
             X = np.expand_dims(X, axis=0)
         
         # Make prediction
-        return self.model.predict(X)
+        return self.model(X, training=False).numpy()
     
     def evaluate(self, X_test, y_test):
         """Evaluate model"""
@@ -160,7 +160,7 @@ class TFCNN:
         
         if conv_layer is not None:
             feature_map_model = tf.keras.models.Model(
-                inputs=self.model.inputs,
+                inputs=self.model.inputs[0],
                 outputs=self.model.layers[conv_layer].output
             )
             
@@ -169,7 +169,7 @@ class TFCNN:
                 X = np.expand_dims(X, axis=0)
             
             # Get feature maps
-            feature_maps = feature_map_model.predict(X)
+            feature_maps = feature_map_model(X, training=False).numpy()
             return feature_maps[0]
         
         return None

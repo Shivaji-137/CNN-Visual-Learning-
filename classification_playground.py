@@ -1,33 +1,24 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import tensorflow as tf
 from PIL import Image
 import plotly.graph_objects as go
 import io
 import time
 import cv2
-from torchvision import transforms, models
 import matplotlib.cm as cm
 
-# Set random seeds for reproducibility
-np.random.seed(42)
-torch.manual_seed(42)
-tf.random.set_seed(42)
+from framework_loader import LazyModule
+
+torch = LazyModule("torch")
+nn = LazyModule("torch.nn")
+F = LazyModule("torch.nn.functional")
+tf = LazyModule("tensorflow")
+transforms = LazyModule("torchvision.transforms")
+models = LazyModule("torchvision.models")
 
 # Class names for MNIST dataset 
 MNIST_CLASSES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-
-# ImageNet classes (top 20 for simplicity in the UI)
-IMAGENET_CLASSES_SUBSET = [
-    'tench', 'goldfish', 'great white shark', 'tiger shark', 'hammerhead shark',
-    'electric ray', 'stingray', 'rooster', 'hen', 'ostrich', 'brambling',
-    'goldfinch', 'house finch', 'junco', 'indigo bunting', 'American robin',
-    'bulbul', 'jay', 'magpie', 'chickadee'
-]
 
 # Common image classification models
 MODEL_OPTIONS = {
@@ -54,7 +45,8 @@ def create_mnist_cnn_pytorch():
 def create_mnist_cnn_tensorflow():
     """Create a simple CNN model for MNIST classification in TensorFlow"""
     model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same', input_shape=(28, 28, 1)),
+        tf.keras.layers.Input(shape=(28, 28, 1)),
+        tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
         tf.keras.layers.MaxPooling2D((2, 2)),
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
         tf.keras.layers.MaxPooling2D((2, 2)),
@@ -112,7 +104,7 @@ def preprocess_image_tensorflow(image, model_type):
         
         # Preprocess with TF's preprocess_input for MobileNetV2
         img_tensor = tf.keras.applications.mobilenet_v2.preprocess_input(
-            np.expand_dims(img_array, axis=0)
+            np.expand_dims(np.asarray(img, dtype=np.float32), axis=0)
         )
         
         return img_tensor, img_array
@@ -132,8 +124,8 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             
             # Register a hook for the second conv layer
             for name, module in model.named_children():
-                if isinstance(module, nn.Conv2d) and name == '2':  # second conv layer
-                    hook = module.register_forward_hook(get_activation('2'))
+                if isinstance(module, nn.Conv2d) and name == '3':  # second conv layer
+                    hook = module.register_forward_hook(get_activation('3'))
                     break
             
             # Forward pass
@@ -146,7 +138,7 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             hook.remove()
             
             # Generate a simple "heatmap" based on feature activations
-            feature_maps = activations['2'].squeeze().cpu().numpy()
+            feature_maps = activations['3'].squeeze().cpu().numpy()
             
             # Use mean across channels for simplicity
             cam = np.mean(feature_maps, axis=0)
@@ -171,6 +163,7 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             
             def forward_hook(module, input, output):
                 activations.append(output)
+                output.register_hook(lambda gradient: gradients.append(gradient))
                 return None
             
             # Get the last convolutional layer in ResNet
@@ -181,7 +174,6 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             
             # Register hooks
             forward_handle = last_conv_layer.register_forward_hook(forward_hook)
-            backward_handle = last_conv_layer.register_backward_hook(backward_hook)
             
             # Forward pass
             model.eval()
@@ -197,7 +189,6 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             
             # Clean up hooks
             forward_handle.remove()
-            backward_handle.remove()
             
             # Compute Grad-CAM
             weights = gradients[0].mean(dim=(2, 3), keepdim=True)
@@ -205,7 +196,7 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             cam = F.relu(cam)  # Apply ReLU to highlight positive contributions
             
             # Normalize and resize
-            cam = cam.squeeze().cpu().numpy()
+            cam = cam.squeeze().detach().cpu().numpy()
             cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
             cam = cv2.resize(cam, (224, 224))
             
@@ -216,8 +207,8 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             # For custom MNIST model, create a simpler visualization
             # Get the output of the second-to-last convolutional layer
             feature_extractor = tf.keras.Model(
-                inputs=model.inputs,
-                outputs=model.get_layer(index=-3).output  # Last conv layer before flatten
+                inputs=model.inputs[0],
+                outputs=[layer for layer in model.layers if isinstance(layer, tf.keras.layers.Conv2D)][-1].output
             )
             
             # Get the feature maps
@@ -251,8 +242,8 @@ def get_class_activation_map(model, img_tensor, img_array, framework, model_type
             
             # Create a model that outputs both the final prediction and the activations
             grad_model = tf.keras.models.Model(
-                inputs=[model.inputs], 
-                outputs=[model.get_layer(last_conv_layer).output, model.output]
+                inputs=model.inputs[0],
+                outputs=[model.get_layer(last_conv_layer).output, model.outputs[0]]
             )
             
             # Compute gradient using GradientTape
@@ -391,17 +382,17 @@ def get_feature_visualizations(model, img_tensor, framework, model_type):
         if model_type == "MNIST CNN":
             # Create a model that outputs activations from all layers
             layer_outputs = [layer.output for layer in model.layers if isinstance(layer, tf.keras.layers.Conv2D)]
-            activation_model = tf.keras.Model(inputs=model.input, outputs=layer_outputs)
+            activation_model = tf.keras.Model(inputs=model.inputs[0], outputs=layer_outputs)
             
             # Get activations
-            activations = activation_model.predict(img_tensor)
+            activations = activation_model(img_tensor, training=False)
             
             # Format activations
             for i, activation in enumerate(activations):
-                act = activation[0]  # Remove batch dimension
+                act = activation.numpy()[0]  # Remove batch dimension
                 feature_maps.append({
                     "name": f"Conv Layer {i+1}",
-                    "maps": act,
+                    "maps": np.transpose(act, (2, 0, 1)),
                     "shape": act.shape
                 })
         
@@ -421,14 +412,14 @@ def get_feature_visualizations(model, img_tensor, framework, model_type):
             
             # Create a model that outputs these activations
             if layer_outputs:
-                activation_model = tf.keras.Model(inputs=model.input, outputs=layer_outputs)
+                activation_model = tf.keras.Model(inputs=model.inputs[0], outputs=layer_outputs)
                 
                 # Get activations
-                activations = activation_model.predict(img_tensor)
+                activations = activation_model(img_tensor, training=False)
                 
                 # Format activations
                 for i, activation in enumerate(activations):
-                    act = activation[0]  # Remove batch dimension
+                    act = activation.numpy()[0]  # Remove batch dimension
                     # For MobileNet, pick a few representative channels
                     n_channels = min(8, act.shape[-1])
                     feature_maps.append({
@@ -525,37 +516,34 @@ def image_classification_playground():
     # Model selection based on framework
     model_type = st.selectbox("Select Model:", MODEL_OPTIONS[framework])
     
-    # Load the selected model
-    model = None
-    class_names = []
-    
+    if model_type == "MNIST CNN":
+        st.warning("This digit model has random, untrained weights. Its predictions and activation maps illustrate the architecture; they are not reliable digit recognition.")
+    else:
+        st.info("Pretrained ImageNet weights download on first use. Synthetic shapes may not resemble the photographs used for training.")
+    cache = st.session_state.setdefault("classification_models", {})
+    key = (framework, model_type)
     with st.spinner("Loading model..."):
-        if framework == "PyTorch":
-            if model_type == "MNIST CNN":
-                model = create_mnist_cnn_pytorch()
-                # In a real app, we would load pre-trained weights here
-                # For demo purposes, we'll use the untrained model
-                class_names = MNIST_CLASSES
-            
-            elif model_type == "ResNet-18 (ImageNet)":
-                model = models.resnet18(pretrained=True)
-                model.eval()
-                class_names = IMAGENET_CLASSES_SUBSET  # Using our subset for UI simplicity
-        
-        elif framework == "TensorFlow":
-            if model_type == "MNIST CNN":
-                model = create_mnist_cnn_tensorflow()
-                # For demo purposes, we'll use the untrained model
-                class_names = MNIST_CLASSES
-            
-            elif model_type == "MobileNetV2 (ImageNet)":
-                model = tf.keras.applications.MobileNetV2(
-                    input_shape=(224, 224, 3),
-                    include_top=True,
-                    weights='imagenet'
-                )
-                class_names = IMAGENET_CLASSES_SUBSET  # Using our subset for UI simplicity
-    
+        if key not in cache:
+            try:
+                if framework == "PyTorch":
+                    if model_type == "MNIST CNN":
+                        model = create_mnist_cnn_pytorch()
+                        class_names = MNIST_CLASSES
+                    else:
+                        weights = models.ResNet18_Weights.DEFAULT
+                        model = models.resnet18(weights=weights)
+                        class_names = weights.meta["categories"]
+                    model.eval()
+                else:
+                    model = create_mnist_cnn_tensorflow() if model_type == "MNIST CNN" else tf.keras.applications.MobileNetV2(weights="imagenet")
+                    class_names = MNIST_CLASSES if model_type == "MNIST CNN" else []
+                cache[key] = (model, class_names)
+            except (OSError, RuntimeError, ValueError) as exc:
+                st.error(f"Could not load model weights: {exc}")
+                st.info("Try the untrained digit model for an offline architecture demonstration.")
+                return
+        model, class_names = cache[key]
+
     # Image input
     st.subheader("Image Input")
     
@@ -569,8 +557,13 @@ def image_classification_playground():
     if input_option == "Upload Image":
         uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
         if uploaded_file is not None:
-            image = Image.open(uploaded_file).convert('RGB')
-            st.image(image, caption="Uploaded Image", use_container_width=True)
+            try:
+                image = Image.open(uploaded_file).convert('RGB')
+                image.thumbnail((1024, 1024))
+            except (OSError, ValueError):
+                st.error("This file could not be opened as an image. Try another PNG or JPEG.")
+                return
+            st.image(image, caption="Uploaded Image", width="stretch")
     
     else:  # Use Sample Image
         sample_type = "Digit" if "MNIST" in model_type else "Object"
@@ -624,7 +617,7 @@ def image_classification_playground():
             image = Image.fromarray((digit_img * 255).astype(np.uint8))
             
             # Display the sample
-            st.image(image, caption=f"Sample {selected_sample}", use_container_width=True, clamp=True)
+            st.image(image, caption=f"Sample {selected_sample}", width="stretch", clamp=True)
         
         else:  # Object samples for ImageNet models
             # Generate a few colored shapes to serve as sample images
@@ -694,7 +687,7 @@ def image_classification_playground():
             image = Image.fromarray((object_img * 255).astype(np.uint8))
             
             # Display the sample
-            st.image(image, caption=f"Sample {selected_sample}", use_container_width=True)
+            st.image(image, caption=f"Sample {selected_sample}", width="stretch")
     
     # Proceed with classification if an image is available
     if image is not None:
@@ -719,7 +712,7 @@ def image_classification_playground():
             img_tensor, img_array = preprocess_image_tensorflow(image, model_type)
             
             # Get model prediction
-            output = model.predict(img_tensor)
+            output = model(img_tensor, training=False).numpy()
             
             # Apply softmax to get probabilities
             if model_type == "MNIST CNN":
@@ -729,6 +722,16 @@ def image_classification_playground():
             
             # Get top prediction
             prediction = np.argmax(probabilities)
+            if model_type == "MobileNetV2 (ImageNet)":
+                try:
+                    decoded = tf.keras.applications.mobilenet_v2.decode_predictions(probabilities[None, :], top=1000)[0]
+                except (OSError, ValueError) as exc:
+                    st.error(f"Could not download ImageNet class labels: {exc}")
+                    return
+                class_names = [""] * len(probabilities)
+                for index, (_, label, _) in zip(np.argsort(probabilities)[::-1], decoded):
+                    class_names[index] = label.replace("_", " ")
+
         
         # Display prediction
         if model_type in ["MNIST CNN"]:
@@ -781,11 +784,11 @@ def image_classification_playground():
         
         with col1:
             st.markdown("**Original Image**")
-            st.image(image, use_container_width=True)
+            st.image(image, width="stretch")
         
         with col2:
             st.markdown("**Class Activation Map**")
-            st.image(heatmap_image, use_container_width=True)
+            st.image(heatmap_image, width="stretch")
             st.markdown("""
             The highlighted regions show areas the model focuses on when making its prediction.
             Warmer colors (red/yellow) indicate higher importance to the classification decision.

@@ -1,6 +1,5 @@
-import streamlit as st
-import simplified_app  # Import our simplified application
+"""Alternate entry point: streamlit run main.py."""
+from full_apps import main
 
-# Start the application
 if __name__ == "__main__":
-    simplified_app.main()
+    main()

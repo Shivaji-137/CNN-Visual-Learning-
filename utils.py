@@ -2,8 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
-import tensorflow as tf
-import torch
 
 def preprocess_mnist_data(X, y, reshape_for_cnn=True):
     """Preprocess MNIST data for CNN"""
@@ -107,12 +105,12 @@ def compare_execution_time(scratch_fn, tf_fn, torch_fn, *args):
 
 def convert_tf_to_numpy(tensor):
     """Convert TensorFlow tensor to NumPy array"""
-    if isinstance(tensor, tf.Tensor):
+    if hasattr(tensor, "numpy"):
         return tensor.numpy()
     return tensor
 
 def convert_torch_to_numpy(tensor):
     """Convert PyTorch tensor to NumPy array"""
-    if isinstance(tensor, torch.Tensor):
+    if hasattr(tensor, "detach"):
         return tensor.detach().cpu().numpy()
     return tensor

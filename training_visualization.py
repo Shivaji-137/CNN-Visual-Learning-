@@ -1,23 +1,20 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import tensorflow as tf
 from PIL import Image
 import plotly.graph_objects as go
 import io
 import time
-from IPython.display import clear_output
 from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
 from matplotlib import cm
 
-# Set random seeds for reproducibility
-np.random.seed(42)
-torch.manual_seed(42)
-tf.random.set_seed(42)
+from framework_loader import LazyModule
+
+torch = LazyModule("torch")
+nn = LazyModule("torch.nn")
+F = LazyModule("torch.nn.functional")
+tf = LazyModule("tensorflow")
 
 def create_simple_cnn():
     """Create a simple CNN model for visualization"""
@@ -38,7 +35,8 @@ def create_simple_cnn():
 def create_simple_tf_model():
     """Create a simple TensorFlow CNN model for visualization"""
     model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(4, (3, 3), activation='relu', padding='same', input_shape=(28, 28, 1)),
+        tf.keras.layers.Input(shape=(28, 28, 1)),
+        tf.keras.layers.Conv2D(4, (3, 3), activation='relu', padding='same'),
         tf.keras.layers.MaxPooling2D((2, 2)),
         tf.keras.layers.Conv2D(8, (3, 3), activation='relu', padding='same'),
         tf.keras.layers.MaxPooling2D((2, 2)),
@@ -54,9 +52,11 @@ def generate_dummy_mnist_data(n_samples=100):
     x = np.random.rand(n_samples, 28, 28) * 0.3
     
     # Create some random "digits" as circular blobs
+    y = np.empty(n_samples, dtype=int)
     for i in range(n_samples):
         # Random digit class (0-9)
         digit = np.random.randint(0, 10)
+        y[i] = digit
         
         # Create a circular blob for that digit
         center_x = 14 + np.random.randint(-5, 5)
@@ -84,7 +84,6 @@ def generate_dummy_mnist_data(n_samples=100):
             x[i, x[i] > 1.0] = 1.0  # Clip values
     
     # Create corresponding labels
-    y = np.random.randint(0, 10, size=n_samples)
     
     # Reshape x for CNN
     x_reshaped = x.reshape(n_samples, 28, 28, 1)
@@ -132,8 +131,8 @@ def get_layer_activations(model, x, framework="pytorch"):
         # Create separate models for each layer
         layer_outputs = []
         for i, layer in enumerate(model.layers):
-            layer_model = tf.keras.Model(inputs=model.input, outputs=layer.output)
-            layer_outputs.append(layer_model.predict(x_tf))
+            layer_model = tf.keras.Model(inputs=model.inputs[0], outputs=layer.output)
+            layer_outputs.append(layer_model(x_tf, training=False).numpy())
         
         # Store activations
         for i, output in enumerate(layer_outputs):
@@ -144,6 +143,7 @@ def get_layer_activations(model, x, framework="pytorch"):
 
 def visualize_training_progress():
     st.title("Layer-by-Layer Training Visualization")
+    st.info("This activity uses synthetic blobs with digit-like variations, not real MNIST handwriting. Accuracy describes this toy dataset only.")
     
     st.markdown("""
     # Interactive CNN Training Visualization
@@ -222,7 +222,7 @@ def visualize_training_progress():
     cols = st.columns(num_samples)
     for i, col in enumerate(cols):
         with col:
-            st.image(viz_x[i, :, :, 0], caption=f"Label: {viz_y[i]}", use_container_width=True, clamp=True)
+            st.image(viz_x[i, :, :, 0], caption=f"Label: {viz_y[i]}", width="stretch", clamp=True)
     
     # Training simulation
     if st.button("Run Training Simulation"):

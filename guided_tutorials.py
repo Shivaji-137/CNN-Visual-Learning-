@@ -1,10 +1,6 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import tensorflow as tf
 from PIL import Image
 import plotly.graph_objects as go
 import io
@@ -14,9 +10,6 @@ import pandas as pd
 from scipy.signal import convolve2d
 
 # Set random seeds for reproducibility
-np.random.seed(42)
-torch.manual_seed(42)
-tf.random.set_seed(42)
 
 # Function to create a simple sample image for convolution demonstration
 def create_sample_image(type="edge", size=32):
@@ -209,7 +202,7 @@ def convolution_tutorial():
         sample_img = create_sample_image(image_type)
         
         # Display the sample image
-        st.image(sample_img, caption="Sample Image", use_container_width=True, clamp=True)
+        st.image(sample_img, caption="Sample Image", width="stretch", clamp=True)
     
     with col2:
         # Filter selection
@@ -247,16 +240,16 @@ def convolution_tutorial():
     
     with col1:
         st.markdown("**Input Image**")
-        st.image(sample_img, caption="Input", use_container_width=True, clamp=True)
+        st.image(sample_img, caption="Input", width="stretch", clamp=True)
     
     with col2:
         st.markdown("**Filter**")
         filter_img = (selected_filter - selected_filter.min()) / (selected_filter.max() - selected_filter.min())
-        st.image(filter_img, caption=filter_name, use_container_width=True, clamp=True)
+        st.image(filter_img, caption=filter_name, width="stretch", clamp=True)
     
     with col3:
         st.markdown("**Feature Map**")
-        st.image(conv_result, caption="Output", use_container_width=True, clamp=True)
+        st.image(conv_result, caption="Output", width="stretch", clamp=True)
     
     # Visualize convolution in 3D
     st.subheader("3D Visualization of Convolution")
@@ -412,7 +405,7 @@ def convolution_tutorial():
     
     with col2:
         st.markdown("**Result with Custom Filter**")
-        st.image(custom_result, caption="Custom Filter Result", use_container_width=True, clamp=True)
+        st.image(custom_result, caption="Custom Filter Result", width="stretch", clamp=True)
     
     # Learning checkpoints
     st.subheader("Key Takeaways")
@@ -482,10 +475,10 @@ def activation_tutorial():
         
         # Display the input and convolution result
         st.markdown("**Original Image:**")
-        st.image(sample_img, caption="Input Image", use_container_width=True, clamp=True)
+        st.image(sample_img, caption="Input Image", width="stretch", clamp=True)
         
         st.markdown("**After Convolution:**")
-        st.image(conv_result, caption=f"Convolved with {filter_name}", use_container_width=True, clamp=True)
+        st.image(conv_result, caption=f"Convolved with {filter_name}", width="stretch", clamp=True)
     
     with col2:
         # Activation function selection
@@ -557,7 +550,7 @@ def activation_tutorial():
         
         # Display the result after activation
         st.markdown("**After Activation:**")
-        st.image(result, caption=f"After {activation_type}", use_container_width=True, clamp=True)
+        st.image(result, caption=f"After {activation_type}", width="stretch", clamp=True)
         
         # Display description
         st.markdown(description)
@@ -789,10 +782,10 @@ def pooling_tutorial():
         
         # Display the input and processed feature map
         st.markdown("**Original Image:**")
-        st.image(sample_img, caption="Input Image", use_container_width=True, clamp=True)
+        st.image(sample_img, caption="Input Image", width="stretch", clamp=True)
         
         st.markdown("**Feature Map (After Convolution & Activation):**")
-        st.image(feature_map, caption="Feature Map", use_container_width=True, clamp=True)
+        st.image(feature_map, caption="Feature Map", width="stretch", clamp=True)
     
     with col2:
         # Pooling options
@@ -829,7 +822,7 @@ def pooling_tutorial():
         
         # Show pooling visualization
         st.markdown("**After Pooling:**")
-        st.image(pooled_result, caption=f"After {pooling_type}", use_container_width=True, clamp=True)
+        st.image(pooled_result, caption=f"After {pooling_type}", width="stretch", clamp=True)
         
         # Show pooling description
         st.markdown(description)
@@ -1252,7 +1245,7 @@ def architecture_flow_tutorial():
     
     if selected_idx == 0:
         # Input image
-        st.image(activation, caption="Input Image", use_container_width=True, clamp=True)
+        st.image(activation, caption="Input Image", width="stretch", clamp=True)
     
     elif len(shape) == 3:
         # 3D tensor (Conv/Pool layers)
@@ -1260,7 +1253,7 @@ def architecture_flow_tutorial():
         
         if shape[0] == 1:
             # Just one channel
-            st.image(activation, caption=f"Activation for {selected_stage}", use_container_width=True, clamp=True)
+            st.image(activation, caption=f"Activation for {selected_stage}", width="stretch", clamp=True)
         
         else:
             # Multiple feature maps - create a grid

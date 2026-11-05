@@ -493,7 +493,7 @@ def advanced_visualizations():
             sample_img = create_sample_image(image_type, size=image_size)
             
             # Display the sample image
-            st.image(sample_img, caption="Sample Image", use_container_width=True, clamp=True)
+            st.image(sample_img, caption="Sample Image", width="stretch", clamp=True)
         
         with col2:
             # Filter selection
@@ -532,20 +532,17 @@ def advanced_visualizations():
             ax.set_title(f"{filter_name}")
             st.pyplot(fig)
         
-        # Generate and display the animation
+        # Use browser-side frames rather than writing a shared GIF on the server.
         if st.button("Generate Convolution Animation", key="gen_anim_btn"):
-            with st.spinner("Generating animation... This may take a moment."):
-                # Save animation to GIF
-                anim, fig = animate_convolution(sample_img, selected_filter, save_animation=True)
-                
-                # Display the saved animation
-                try:
-                    st.image("convolution_animation.gif", caption="Convolution Animation", use_container_width=True)
-                    st.success("Animation generated successfully!")
-                except:
-                    st.error("Could not generate animation. Please try with a smaller image size.")
-                    st.pyplot(fig)  # Show the static figure instead
-        
+            from operations_explorer import window_steps, animation_figure
+            factor = max(1, int(np.ceil(sample_img.shape[0] / 12)))
+            preview = sample_img[::factor, ::factor]
+            if factor > 1:
+                st.caption(f"Animation uses a {preview.shape[0]} × {preview.shape[1]} preview for responsive playback.")
+            output, steps = window_steps(preview, "Convolution", 3, 1, selected_filter)
+            figure = animation_figure(preview, output, steps, "Convolution", max(100,1100-animation_speed*100))
+            st.plotly_chart(figure, width="stretch", key="advanced_convolution_animation")
+
         st.write("""
         ### Understanding the Animation
         
@@ -589,7 +586,7 @@ def advanced_visualizations():
             sample_img = create_sample_image(image_type, size=image_size)
             
             # Display the sample image
-            st.image(sample_img, caption="Sample Image", use_container_width=True, clamp=True)
+            st.image(sample_img, caption="Sample Image", width="stretch", clamp=True)
         
         with col2:
             # Filter selection (multi-select)
@@ -653,7 +650,7 @@ def advanced_visualizations():
                 with cols[i % 3]:
                     conv_result = results[filter_name]['conv_result']
                     st.write(f"**{filter_name}**")
-                    st.image(conv_result, caption=f"Conv with {filter_name}", use_container_width=True, clamp=True)
+                    st.image(conv_result, caption=f"Conv with {filter_name}", width="stretch", clamp=True)
             
             # Show activation results
             st.write(f"### After {activation_name} Activation")
@@ -663,7 +660,7 @@ def advanced_visualizations():
                 with cols[i % 3]:
                     activation_result = results[filter_name]['activation_result']
                     st.write(f"**{filter_name}**")
-                    st.image(activation_result, caption=f"{filter_name} + {activation_name}", use_container_width=True, clamp=True)
+                    st.image(activation_result, caption=f"{filter_name} + {activation_name}", width="stretch", clamp=True)
             
             # 3D visualization comparison
             st.subheader("3D Feature Map Comparison")
@@ -735,7 +732,7 @@ def advanced_visualizations():
                             margin=dict(l=0, r=0, b=0, t=30)
                         )
                         
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
     
     # Tab 3: Backpropagation Visualization
     with tabs[2]:
@@ -827,7 +824,7 @@ def advanced_visualizations():
                 
                 # Draw neuron
                 circle = plt.Circle((x, y), 0.8, fill=True, 
-                                  color=plt.cm.get_cmap(color_scheme)(network_data['activations'][l][n]))
+                                  color=plt.get_cmap(color_scheme)(network_data['activations'][l][n]))
                 ax.add_patch(circle)
                 
                 # Add activation value
@@ -896,8 +893,8 @@ def advanced_visualizations():
         import matplotlib.patches as mpatches
         
         legend_elements = [
-            mpatches.Patch(color=plt.cm.get_cmap(color_scheme)(0.2), label='Low Activation'),
-            mpatches.Patch(color=plt.cm.get_cmap(color_scheme)(0.8), label='High Activation'),
+            mpatches.Patch(color=plt.get_cmap(color_scheme)(0.2), label='Low Activation'),
+            mpatches.Patch(color=plt.get_cmap(color_scheme)(0.8), label='High Activation'),
             plt.Line2D([0], [0], color='black', linewidth=1, label='Weak Connection'),
             plt.Line2D([0], [0], color='black', linewidth=3, label='Strong Connection'),
         ]
@@ -971,7 +968,7 @@ def advanced_visualizations():
             sample_img = create_sample_image(image_type, size=image_size)
             
             # Display the sample image
-            st.image(sample_img, caption="Original Image", use_container_width=True, clamp=True)
+            st.image(sample_img, caption="Original Image", width="stretch", clamp=True)
         
         with col2:
             # Filter selection
@@ -1022,17 +1019,17 @@ def advanced_visualizations():
             if len(sample_img.shape) == 2:
                 # Convert grayscale to RGB for consistent display
                 display_img = np.stack([sample_img] * 3, axis=2) * 255
-                st.image(display_img.astype(np.uint8), use_container_width=True, clamp=True)
+                st.image(display_img.astype(np.uint8), width="stretch", clamp=True)
             else:
-                st.image(sample_img, use_container_width=True, clamp=True)
+                st.image(sample_img, width="stretch", clamp=True)
         
         with col2:
             st.write("**Activation Map**")
-            st.image(conv_result, use_container_width=True, clamp=True)
+            st.image(conv_result, width="stretch", clamp=True)
         
         with col3:
             st.write("**Highlighted Features**")
-            st.image(blended, use_container_width=True, clamp=True)
+            st.image(blended, width="stretch", clamp=True)
         
         st.write("""
         ### Understanding Feature Highlighting

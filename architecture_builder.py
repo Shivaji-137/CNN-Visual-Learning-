@@ -1,9 +1,6 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-import tensorflow as tf
 from PIL import Image
 import plotly.graph_objects as go
 import networkx as nx
@@ -13,15 +10,10 @@ import math
 import re
 
 # Set random seeds for reproducibility
-np.random.seed(42)
-torch.manual_seed(42)
-tf.random.set_seed(42)
 
 # Available layer types for architecture building
 LAYER_TYPES = {
     "Convolutional": {
-        "pytorch": nn.Conv2d,
-        "tensorflow": tf.keras.layers.Conv2D,
         "params": {
             "filters": {"type": "int", "min": 1, "max": 256, "default": 32},
             "kernel_size": {"type": "int", "min": 1, "max": 7, "default": 3},
@@ -31,8 +23,6 @@ LAYER_TYPES = {
         "short_name": "Conv"
     },
     "MaxPooling": {
-        "pytorch": nn.MaxPool2d,
-        "tensorflow": tf.keras.layers.MaxPooling2D,
         "params": {
             "pool_size": {"type": "int", "min": 1, "max": 4, "default": 2},
             "stride": {"type": "int", "min": 1, "max": 4, "default": 2}
@@ -40,8 +30,6 @@ LAYER_TYPES = {
         "short_name": "MaxPool"
     },
     "AveragePooling": {
-        "pytorch": nn.AvgPool2d,
-        "tensorflow": tf.keras.layers.AveragePooling2D,
         "params": {
             "pool_size": {"type": "int", "min": 1, "max": 4, "default": 2},
             "stride": {"type": "int", "min": 1, "max": 4, "default": 2}
@@ -49,54 +37,38 @@ LAYER_TYPES = {
         "short_name": "AvgPool"
     },
     "ReLU": {
-        "pytorch": nn.ReLU,
-        "tensorflow": "relu",  # Activation name for TF
         "params": {},
         "short_name": "ReLU"
     },
     "Sigmoid": {
-        "pytorch": nn.Sigmoid,
-        "tensorflow": "sigmoid",  # Activation name for TF
         "params": {},
         "short_name": "Sigmoid"
     },
     "Tanh": {
-        "pytorch": nn.Tanh,
-        "tensorflow": "tanh",  # Activation name for TF
         "params": {},
         "short_name": "Tanh"
     },
     "LeakyReLU": {
-        "pytorch": nn.LeakyReLU,
-        "tensorflow": tf.keras.layers.LeakyReLU,
         "params": {
             "alpha": {"type": "float", "min": 0.01, "max": 0.5, "default": 0.1}
         },
         "short_name": "LReLU"
     },
     "BatchNormalization": {
-        "pytorch": nn.BatchNorm2d,
-        "tensorflow": tf.keras.layers.BatchNormalization,
         "params": {},
         "short_name": "BN"
     },
     "Dropout": {
-        "pytorch": nn.Dropout,
-        "tensorflow": tf.keras.layers.Dropout,
         "params": {
             "rate": {"type": "float", "min": 0.0, "max": 0.9, "default": 0.5}
         },
         "short_name": "Drop"
     },
     "Flatten": {
-        "pytorch": nn.Flatten,
-        "tensorflow": tf.keras.layers.Flatten,
         "params": {},
         "short_name": "Flat"
     },
     "FullyConnected": {
-        "pytorch": nn.Linear,
-        "tensorflow": tf.keras.layers.Dense,
         "params": {
             "units": {"type": "int", "min": 1, "max": 1024, "default": 128},
             "activation": {"type": "select", "options": ["none", "relu", "sigmoid", "tanh"], "default": "relu"}
@@ -139,17 +111,24 @@ def generate_pytorch_code(layers, input_shape):
             padding = params.get("padding", "same")
             
             # Convert padding to integer
-            padding_val = kernel_size // 2 if padding == "same" else 0
+            padding_val = 0
             
             layer_name = f"conv{i+1}"
             layer_def = f"        self.{layer_name} = nn.Conv2d({in_channels}, {filters}, kernel_size={kernel_size}, stride={stride}, padding={padding_val})"
             layer_defs.append(layer_def)
+            if padding == "same":
+                # Match TensorFlow SAME for even kernels and strides greater than one.
+                forward_ops.extend([
+                    f"pad_h = max(((x.shape[-2] + {stride} - 1) // {stride} - 1) * {stride} + {kernel_size} - x.shape[-2], 0)",
+                    f"pad_w = max(((x.shape[-1] + {stride} - 1) // {stride} - 1) * {stride} + {kernel_size} - x.shape[-1], 0)",
+                    "x = F.pad(x, (pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2))",
+                ])
             forward_ops.append(f"x = self.{layer_name}(x)")
             
             # Update shape
             if padding == "valid":
-                current_shape[1] = math.floor((current_shape[1] - kernel_size + 1) / stride)
-                current_shape[2] = math.floor((current_shape[2] - kernel_size + 1) / stride)
+                current_shape[1] = math.floor((current_shape[1] - kernel_size) / stride + 1)
+                current_shape[2] = math.floor((current_shape[2] - kernel_size) / stride + 1)
             else:  # same padding
                 current_shape[1] = math.ceil(current_shape[1] / stride)
                 current_shape[2] = math.ceil(current_shape[2] / stride)
@@ -192,7 +171,7 @@ def generate_pytorch_code(layers, input_shape):
         # Handle batch normalization
         elif layer_type == "BatchNormalization":
             layer_name = f"bn{i+1}"
-            layer_def = f"        self.{layer_name} = nn.BatchNorm2d({in_channels})"
+            layer_def = f"        self.{layer_name} = nn.BatchNorm{2 if len(current_shape) > 1 else 1}d({current_shape[0]})"
             layer_defs.append(layer_def)
             forward_ops.append(f"x = self.{layer_name}(x)")
         
@@ -206,13 +185,13 @@ def generate_pytorch_code(layers, input_shape):
         
         # Handle flatten
         elif layer_type == "Flatten":
-            layer_name = "flatten"
+            layer_name = f"flatten{i+1}"
             layer_def = f"        self.{layer_name} = nn.Flatten()"
             layer_defs.append(layer_def)
             forward_ops.append(f"x = self.{layer_name}(x)")
             
             # Update shape - flatten to 1D
-            flattened_size = current_shape[0] * current_shape[1] * current_shape[2]
+            flattened_size = math.prod(current_shape)
             current_shape = [flattened_size]
         
         # Handle fully connected layers
@@ -222,7 +201,7 @@ def generate_pytorch_code(layers, input_shape):
             
             # If this is the first FC layer after conv/pool, we need to know the flattened size
             if len(current_shape) > 1:
-                flattened_size = current_shape[0] * current_shape[1] * current_shape[2]
+                flattened_size = math.prod(current_shape)
                 layer_defs.append(f"        self.flatten = nn.Flatten()")
                 forward_ops.append(f"x = self.flatten(x)")
                 current_shape = [flattened_size]
@@ -344,13 +323,15 @@ def generate_tensorflow_code(layers, input_shape):
             code_lines.append(f"    x = layers.Flatten()(x)")
             
             # Update shape - flatten to 1D
-            flattened_size = current_shape[0] * current_shape[1] * current_shape[2]
+            flattened_size = math.prod(current_shape)
             current_shape = [flattened_size]
         
         # Handle fully connected layers
         elif layer_type == "FullyConnected":
             units = params.get("units", 128)
             activation = params.get("activation", "relu")
+            if len(current_shape) > 1:
+                code_lines.append("    x = layers.Flatten()(x)")
             
             if activation == "none":
                 code_lines.append(f"    x = layers.Dense({units})(x)")
@@ -372,6 +353,8 @@ def generate_tensorflow_code(layers, input_shape):
 
 def calculate_output_shape(layers, input_shape):
     """Calculate the output shape after each layer"""
+    if len(input_shape) != 3 or min(input_shape) < 1:
+        raise ValueError("Input shape must contain positive channels, height, and width.")
     shapes = [list(input_shape)]  # Start with the input shape
     current_shape = list(input_shape)
     
@@ -379,6 +362,8 @@ def calculate_output_shape(layers, input_shape):
         layer_type = layer["type"]
         params = layer["params"]
         
+        if layer_type in {"Convolutional", "MaxPooling", "AveragePooling"} and len(current_shape) != 3:
+            raise ValueError("Convolution and pooling need spatial input. Move them before Flatten or FullyConnected.")
         # Handle convolutional layers
         if layer_type == "Convolutional":
             filters = params.get("filters", 32)
@@ -406,7 +391,7 @@ def calculate_output_shape(layers, input_shape):
         
         # Handle flatten layer
         elif layer_type == "Flatten":
-            flattened_size = current_shape[0] * current_shape[1] * current_shape[2]
+            flattened_size = math.prod(current_shape)
             current_shape = [flattened_size]
         
         # Handle fully connected layers
@@ -415,11 +400,13 @@ def calculate_output_shape(layers, input_shape):
             
             # If current shape is still 3D, flatten it first
             if len(current_shape) == 3:
-                flattened_size = current_shape[0] * current_shape[1] * current_shape[2]
+                flattened_size = math.prod(current_shape)
                 current_shape = [flattened_size]
             
             current_shape = [units]
         
+        if min(current_shape) < 1:
+            raise ValueError("A layer reduces the image to zero size. Reduce its window/stride or add padding.")
         # Add the new shape
         shapes.append(list(current_shape))
     
@@ -494,8 +481,8 @@ def calculate_parameter_count(layers, input_shape):
         
         # Handle batch normalization
         elif layer_type == "BatchNormalization":
-            # BatchNorm has 4 parameters per channel: gamma, beta, moving_mean, moving_variance
-            layer_params = 4 * current_shape[0]
+            # Trainable BatchNorm parameters: scale and offset (running statistics are buffers).
+            layer_params = 2 * current_shape[0]
         
         # Handle pooling layers
         elif layer_type in ["MaxPooling", "AveragePooling"]:
@@ -526,7 +513,7 @@ def calculate_parameter_count(layers, input_shape):
             layer_params = 0
             
             # Update current shape
-            flattened_size = current_shape[0] * current_shape[1] * current_shape[2]
+            flattened_size = math.prod(current_shape)
             current_shape = [flattened_size]
         
         # Handle fully connected layers
@@ -535,7 +522,7 @@ def calculate_parameter_count(layers, input_shape):
             
             # If current shape is still 3D, flatten it first
             if len(current_shape) == 3:
-                flattened_size = current_shape[0] * current_shape[1] * current_shape[2]
+                flattened_size = math.prod(current_shape)
                 current_shape = [flattened_size]
             
             # Parameters = (in_features + 1) * out_features
@@ -671,7 +658,7 @@ def architecture_builder():
     Generate ready-to-use code for PyTorch or TensorFlow.
 
     ## Features:
-    - **Interactive Layer Addition**: Drag and drop layers to build your network
+    - **Interactive Layer Addition**: Choose layers and add them to your network
     - **Real-time Visualization**: See how your network architecture evolves
     - **Parameter Configuration**: Customize each layer's parameters
     - **Performance Estimation**: Get estimates for the model's size and computational requirements
@@ -749,8 +736,13 @@ def architecture_builder():
             "type": layer_type,
             "params": param_values
         }
-        st.session_state.network_layers.append(new_layer)
-        st.success(f"Added {layer_type} layer")
+        try:
+            calculate_output_shape(st.session_state.network_layers + [new_layer], input_shape)
+        except ValueError as exc:
+            st.warning(str(exc))
+        else:
+            st.session_state.network_layers.append(new_layer)
+            st.success(f"Added {layer_type} layer")
     
     # Display and modify the current architecture
     if st.session_state.network_layers:
@@ -780,10 +772,14 @@ def architecture_builder():
         if st.button("Remove Layer"):
             if 1 <= layer_to_remove <= len(st.session_state.network_layers):
                 removed_layer = st.session_state.network_layers.pop(layer_to_remove - 1)
-                st.success(f"Removed {removed_layer['type']} layer at position {layer_to_remove}")
+                st.rerun()
         
         # Calculate network properties
-        output_shapes = calculate_output_shape(st.session_state.network_layers, input_shape)
+        try:
+            output_shapes = calculate_output_shape(st.session_state.network_layers, input_shape)
+        except ValueError as exc:
+            st.warning(str(exc))
+            return
         receptive_fields = calculate_receptive_field(st.session_state.network_layers, input_shape)
         param_counts, total_params = calculate_parameter_count(st.session_state.network_layers, input_shape)
         
@@ -849,7 +845,7 @@ def architecture_builder():
         # Clear architecture button
         if st.button("Clear Architecture"):
             st.session_state.network_layers = []
-            st.success("Architecture cleared")
+            st.rerun()
     
     else:
         st.info("Start adding layers to build your CNN architecture")
