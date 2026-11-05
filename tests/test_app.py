@@ -31,8 +31,8 @@ def test_no_filters_shows_guidance():
 
 def test_home_activity_link_and_alternate_entrypoint():
     app = AppTest.from_file(ROOT / 'main.py').run()
-    app.button(key='home_Animation Lab').click().run()
-    assert app.selectbox(key='page').value == 'Animation Lab'
+    app.button(key='home_Photo Lab').click().run()
+    assert app.selectbox(key='page').value == 'Photo Lab'
     assert not app.exception
 
 
@@ -56,6 +56,7 @@ def test_sample_image_numeric_feature_animations():
     app.multiselect[0].set_value(['Edge Detection (Horizontal)']).run()
     prefix = 'feature_Edge Detection (Horizontal)'
     app.checkbox(key=f'{prefix}_enabled').check().run()
+    app.radio(key=f'{prefix}_view').set_value('Numbers close-up').run()
     for operation in ['Max pooling','Average pooling','Convolution','Activation','Flatten']:
         app.selectbox(key=f'{prefix}_operation').select(operation).run()
         assert not app.exception, [exc.message for exc in app.exception]

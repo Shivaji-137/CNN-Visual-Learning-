@@ -4,11 +4,12 @@ from framework_loader import load_module
 
 
 PAGES = {
-    "Learn": ["Home", "Introduction", "Guided Tutorials", "Animation Lab"],
+    "Learn": ["Home", "Introduction", "Guided Tutorials", "Photo Lab", "Animation Lab"],
     "Experiment": ["Process Sample Images", "Upload Your Own Image", "Custom Filter Builder", "Advanced Visualizations"],
     "Build & Train": ["CNN from Scratch", "CNN with Libraries", "Training Visualization", "Layer-by-Layer Training", "Architecture Builder", "Classification Playground", "Comparison"],
 }
 DESCRIPTIONS = {
+    "Photo Lab": "Watch real photographs change through pooling, convolution, and activation.",
     "Introduction": "Follow an image from pixels to features and predictions.",
     "Guided Tutorials": "Build intuition with step-by-step CNN lessons.",
     "Animation Lab": "Watch windows move, compare pooling, and explore activations.",
@@ -25,6 +26,7 @@ DESCRIPTIONS = {
     "Comparison": "Compare operations and illustrative timings across implementations.",
 }
 EXTRA_PAGES = {
+    "Photo Lab": ("photo_explorer", "render"),
     "Layer-by-Layer Training": ("training_visualization", "visualize_training_progress"),
     "Guided Tutorials": ("guided_tutorials", "guided_tutorials"),
     "Animation Lab": ("operations_explorer", "render"),
@@ -43,7 +45,7 @@ def home():
     st.markdown('<div class="hero"><span class="eyebrow">AN INTERACTIVE LEARNING LAB</span><h1>See how a CNN sees.</h1><p>Turn pixels into patterns. Move through each operation, build your intuition, and train a network of your own.</p></div>', unsafe_allow_html=True)
     st.subheader("Start with one small experiment")
     for col, (page, label) in zip(st.columns(3), [
-        ("Animation Lab", "01 · Watch it move"),
+        ("Photo Lab", "01 · Watch a photo change"),
         ("Process Sample Images", "02 · Try a filter"),
         ("CNN from Scratch", "03 · Train a CNN"),
     ]):
@@ -61,7 +63,7 @@ def home():
                     with st.expander(page):
                         st.write(DESCRIPTIONS[page])
                         st.button("Explore →", key=f"directory_{page}", on_click=open_page, args=(page,))
-    st.info("New to CNNs? Start with the Animation Lab. The basic activities use built-in images and need no dataset downloads.")
+    st.info("New to CNNs? Start with the Photo Lab. The basic activities use built-in images and need no dataset downloads.")
 
 
 def main():

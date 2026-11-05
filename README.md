@@ -8,9 +8,15 @@ The home screen links to three learning paths, with all activities available fro
 
 | Path | Activities |
 | --- | --- |
-| Learn | Introduction, guided tutorials, animation lab |
+| Learn | Introduction, guided tutorials, photo lab, animation lab |
 | Experiment | Sample images, image uploads, custom filters, advanced visualizations |
 | Build & Train | NumPy CNN, TensorFlow/PyTorch CNNs, training visualization, layer-by-layer training, architecture builder, classification playground, implementation comparison |
+
+### Photo Lab
+
+Use real garden and flower photographs bundled with scikit-learn, or upload your own photo. Watch the original photograph, active window, and progressively built output together. Compare max/average pooling, edge detection, blur, sharpening, and activation functions. Photos are reduced to at most 128 pixels per side and processed in grayscale for responsive playback.
+
+The sample-image picker starts with these photographs. Each filter's animation offers a **Whole image** view and a **Numbers close-up**. Full-image playback computes every output value and displays up to 48 checkpoints. On large uploaded feature maps, animation inputs are sampled to at most 128 pixels per side; the regular image-processing results retain their existing resolution.
 
 ### Animation Lab
 
@@ -79,6 +85,7 @@ Tests cover numeric operation outputs and animation frames, NumPy gradients and 
 | File | Purpose |
 | --- | --- |
 | `full_apps.py`, `main.py` | App shell, navigation, home screen, and entry points |
+| `photo_explorer.py` | Built-in photographs and full-image operation playback |
 | `operations_explorer.py` | Numeric operation steps and interactive animations |
 | `core_pages.py` | Main training and model comparison pages |
 | `framework_loader.py` | Deferred framework imports and missing-library guidance |
@@ -93,4 +100,6 @@ Tests cover numeric operation outputs and animation frames, NumPy gradients and 
 
 ## License
 
-[MIT](LICENSE). Please credit Shivaji Chaulagain when using this project.
+Application code: [MIT](LICENSE). Please credit Shivaji Chaulagain when using this project.
+
+The built-in photographs bundled by scikit-learn are separately licensed under [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/): [garden/China photo by danielbuechele](https://www.flickr.com/photos/danielbuechele/6061409035/) and [flower photo from vultilion](https://www.flickr.com/photos/vultilion/6056698931/). Photo examples are resized, converted to grayscale, and filtered for visualization. Attribution is also displayed in the app and exported photo animations.

@@ -146,6 +146,10 @@ def generate_gradient_pattern(size=64):
         "image": image
     }
 
+# Load real photographs first, followed by generated teaching patterns.
+from photo_explorer import sample_photos
+SAMPLE_IMAGES.extend(sample_photos())
+
 # Load sample images
 try:
     from PIL import ImageDraw
@@ -365,7 +369,7 @@ def apply_pooling(feature_map, pooling_name, pool_size=2):
     """Apply selected pooling operation"""
     return pooling_functions[pooling_name](feature_map, pool_size)
 
-def visualize_complete_cnn_process(image, filters_dict, activation_name, pooling_name, pool_size=2, title="Complete CNN Process"):
+def visualize_complete_cnn_process(image, filters_dict, activation_name, pooling_name, pool_size=2, title="Complete CNN Process", original_image=None):
     """Visualize the complete CNN process: convolution, activation, pooling, flattening, and fully connected"""
     
     # Apply all selected filters
@@ -453,7 +457,7 @@ def visualize_complete_cnn_process(image, filters_dict, activation_name, pooling
         from operations_explorer import render_feature_animation
         render_feature_animation(
             image, kernel, convolution_results[name], activation_results[name], pooling_results[name],
-            activation_name, pooling_name, pool_size, key=f"feature_{name}",
+            activation_name, pooling_name, pool_size, key=f"feature_{name}", photograph=original_image,
         )
 
         # Display 3D visualizations for each stage
@@ -1309,6 +1313,8 @@ class appmode:
             # Display original image
             st.subheader("Original Image")
             st.image(image, caption=selected_image_name, width="stretch")
+            if image.info.get("credit"):
+                st.caption(image.info["credit"])
             
             # Process image (convert to grayscale but maintain original size)
             processed_img = preprocess_image(image)
@@ -1323,7 +1329,7 @@ class appmode:
                 selected_activation, 
                 selected_pooling, 
                 pooling_size, 
-                title=f"Complete CNN Processing for {selected_image_name}"
+                title=f"Complete CNN Processing for {selected_image_name}", original_image=image
             )
             
             # Display activation function comparison for one filter
@@ -1475,7 +1481,7 @@ class appmode:
                         selected_activation, 
                         selected_pooling, 
                         pooling_size, 
-                        title="Complete CNN Processing for Your Image"
+                        title="Complete CNN Processing for Your Image", original_image=image
                     )
                     
                     # Display activation function comparison for one filter

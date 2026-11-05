@@ -175,7 +175,7 @@ def render():
 
 
 def render_feature_animation(image, kernel, convolution, activated, pooled,
-                             activation_name, pooling_name, pool_size, key):
+                             activation_name, pooling_name, pool_size, key, photograph=None):
     """Animate a numeric crop of the real image pipeline without resampling values."""
     import streamlit as st
     with st.expander("Animate feature operations with numbers"):
@@ -188,6 +188,15 @@ def render_feature_animation(image, kernel, convolution, activated, pooled,
                                 index=1 if pooling_name == "Average Pooling" else 0,
                                 key=f"{key}_operation")
         source = {"Convolution":image, "Activation":convolution, "Flatten":pooled}.get(operation, activated)
+        view = st.radio("Animation view", ["Whole image", "Numbers close-up"], key=f"{key}_view", horizontal=True)
+        if view == "Whole image" and operation != "Flatten":
+            from photo_explorer import render_photo_operation
+            original = photograph if photograph is not None else np.repeat(image[:, :, None], 3, axis=2)
+            render_photo_operation(source, original, operation, kernel, pool_size, activation_name,
+                                   key=key, receptive_field=1 if operation == "Convolution" else kernel.shape[0])
+            return
+        if view == "Whole image":
+            st.caption("Flattening preserves values while changing the shape. The numeric close-up below shows their ordering.")
         # A small crop keeps every number readable. No resizing or interpolation.
         crop_size = min(4 if operation == "Flatten" else 8, *source.shape)
         if operation == "Convolution" and min(source.shape) < max(kernel.shape):
