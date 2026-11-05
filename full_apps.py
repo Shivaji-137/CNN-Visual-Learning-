@@ -5,10 +5,11 @@ from framework_loader import load_module
 
 PAGES = {
     "Learn": ["Home", "Introduction", "Guided Tutorials", "Photo Lab", "Animation Lab"],
-    "Experiment": ["Process Sample Images", "Upload Your Own Image", "Custom Filter Builder", "Advanced Visualizations"],
+    "Experiment": ["Light Curve Lab", "Process Sample Images", "Upload Your Own Image", "Custom Filter Builder", "Advanced Visualizations"],
     "Build & Train": ["CNN from Scratch", "CNN with Libraries", "Training Visualization", "Layer-by-Layer Training", "Architecture Builder", "Classification Playground", "Comparison"],
 }
 DESCRIPTIONS = {
+    "Light Curve Lab": "Explore stellar brightness with animated 1D convolution and pooling.",
     "Photo Lab": "Watch real photographs change through pooling, convolution, and activation.",
     "Introduction": "Follow an image from pixels to features and predictions.",
     "Guided Tutorials": "Build intuition with step-by-step CNN lessons.",
@@ -26,6 +27,7 @@ DESCRIPTIONS = {
     "Comparison": "Compare operations and illustrative timings across implementations.",
 }
 EXTRA_PAGES = {
+    "Light Curve Lab": ("light_curve_lab", "render"),
     "Photo Lab": ("photo_explorer", "render"),
     "Layer-by-Layer Training": ("training_visualization", "visualize_training_progress"),
     "Guided Tutorials": ("guided_tutorials", "guided_tutorials"),

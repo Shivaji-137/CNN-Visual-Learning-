@@ -9,7 +9,7 @@ The home screen links to three learning paths, with all activities available fro
 | Path | Activities |
 | --- | --- |
 | Learn | Introduction, guided tutorials, photo lab, animation lab |
-| Experiment | Sample images, image uploads, custom filters, advanced visualizations |
+| Experiment | Light curve lab, sample images, image uploads, custom filters, advanced visualizations |
 | Build & Train | NumPy CNN, TensorFlow/PyTorch CNNs, training visualization, layer-by-layer training, architecture builder, classification playground, implementation comparison |
 
 ### Photo Lab
@@ -17,6 +17,14 @@ The home screen links to three learning paths, with all activities available fro
 Use real garden and flower photographs bundled with scikit-learn, or upload your own photo. Watch the original photograph, active window, and progressively built output together. Compare max/average pooling, edge detection, blur, sharpening, and activation functions. Photos are reduced to at most 128 pixels per side and processed in grayscale for responsive playback.
 
 The sample-image picker starts with these photographs. Each filter's animation offers a **Whole image** view and a **Numbers close-up**. Full-image playback computes every output value and displays up to 48 checkpoints. On large uploaded feature maps, animation inputs are sampled to at most 128 pixels per side; the regular image-processing results retain their existing resolution.
+
+### Light Curve Lab
+
+Explore astronomical brightness time series with animated **1D convolution, maximum/average/minimum pooling, and activation functions**. Gold marks the moving sample window; mint diamonds show the maximum or minimum selected by pooling; the processed curve appears below. Play, pause, restart, or scrub through up to 80 checkpoints, and download the animation or processed values.
+
+The default is an **observed Kepler-8 quarter-0 light curve** from NASA/MAST, bundled as 453 quality-filtered measurements. Exact source, units, quality selection, and preparation are documented in [data/README.md](data/README.md). Simulated transits, variable-star brightness, and flares are explicitly labeled. Upload a CSV with numeric time and brightness columns to explore your own data.
+
+Time units are preserved. Uploaded rows with nonfinite time/flux are reported and removed; samples are sorted by time, and duplicate timestamps are rejected. Windows operate on sample order with no interpolation; by default, windows crossing gaps greater than three times the median cadence are skipped. Output timestamps are the mean of the input window's timestamps. Median normalization and centering are available, but neither constitutes detrending. Pooling can change transit depths and is presented as an educational operation, not an inference pipeline. Uploaded quality flags and measurement uncertainties are not applied or propagated automatically.
 
 ### Animation Lab
 
@@ -85,6 +93,7 @@ Tests cover numeric operation outputs and animation frames, NumPy gradients and 
 | File | Purpose |
 | --- | --- |
 | `full_apps.py`, `main.py` | App shell, navigation, home screen, and entry points |
+| `light_curve_lab.py`, `data/` | Astronomical time-series animations and bundled observed Kepler data |
 | `photo_explorer.py` | Built-in photographs and full-image operation playback |
 | `operations_explorer.py` | Numeric operation steps and interactive animations |
 | `core_pages.py` | Main training and model comparison pages |
